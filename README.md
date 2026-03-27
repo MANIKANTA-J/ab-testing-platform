@@ -190,6 +190,34 @@ Upload to PyPI:
 python -m twine upload dist/*
 ```
 
+## Publish With GitHub Actions
+
+This repository includes two workflows:
+
+- `.github/workflows/ci.yml` runs `pytest` on pushes to `main` and on pull requests.
+- `.github/workflows/publish.yml` builds the package, runs tests, validates `dist/*`, and publishes with PyPI Trusted Publishing.
+
+### One-time setup on PyPI and GitHub
+
+1. On PyPI, create or open the project `ab-testing-platform`.
+2. In PyPI, go to Publishing and add a Trusted Publisher with:
+   - Owner: `MANIKANTA-J`
+   - Repository: `ab-testing-platform`
+   - Workflow filename: `publish.yml` (the file in `.github/workflows/publish.yml`)
+   - Environment: `pypi`
+3. On TestPyPI, repeat the same setup but use environment `testpypi`.
+4. In GitHub, create repository environments named `pypi` and `testpypi`.
+5. For `pypi`, require manual approval before deployment. PyPI recommends this for extra safety.
+
+### Release flow
+
+- Test publish:
+  Go to Actions, open `Publish Package`, click `Run workflow`, and choose `testpypi`.
+- Production publish:
+  Create a GitHub Release and publish it. The workflow will build and upload to PyPI automatically.
+
+If PyPI says the project name `ab-testing-platform` is unavailable, change `[project].name` in `pyproject.toml`, update the workflow `PACKAGE_NAME`, and rebuild before publishing.
+
 ## Example Decision Logic
 
 - ship the treatment when uplift is positive and statistically significant
