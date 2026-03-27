@@ -32,8 +32,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/MANIKANTA-J"
-Source = "https://github.com/MANIKANTA-J"
+Homepage = "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform"
+Repository = "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform"
+Issues = "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform/issues"
 
 [project.optional-dependencies]
 test = ["pytest>=8.0"]

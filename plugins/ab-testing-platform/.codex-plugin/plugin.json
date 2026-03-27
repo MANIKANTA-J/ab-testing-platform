@@ -5,10 +5,10 @@
   "author": {
     "name": "Local Workspace",
     "email": "",
-    "url": ""
+    "url": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform"
   },
-  "homepage": "",
-  "repository": "",
+  "homepage": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
+  "repository": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
   "license": "MIT",
   "keywords": [
     "ab-testing",
@@ -27,7 +27,7 @@
       "Write",
       "Code"
     ],
-    "websiteURL": "",
+    "websiteURL": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
     "privacyPolicyURL": "",
     "termsOfServiceURL": "",
     "defaultPrompt": [
