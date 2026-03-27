@@ -1,0 +1,9 @@
+user_id,variant,segment,converted,sessions,clicks,revenue
+u001,control,mobile-free,0,3,1,0
+u002,control,mobile-free,1,4,2,89.99
+u003,control,desktop-basic,0,2,1,0
+u004,control,desktop-basic,0,3,1,0
+u005,smart_checkout,mobile-free,1,4,2,92.50
+u006,smart_checkout,mobile-free,1,5,3,110.00
+u007,smart_checkout,desktop-basic,0,2,1,0
+u008,smart_checkout,desktop-basic,1,4,2,84.00

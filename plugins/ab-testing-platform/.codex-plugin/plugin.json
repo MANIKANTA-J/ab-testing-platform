@@ -1,0 +1,40 @@
+{
+  "name": "ab-testing-platform",
+  "version": "0.1.0",
+  "description": "Run simulated A/B tests, inspect significance, and launch the local experimentation API.",
+  "author": {
+    "name": "Local Workspace",
+    "email": "",
+    "url": ""
+  },
+  "homepage": "",
+  "repository": "",
+  "license": "MIT",
+  "keywords": [
+    "ab-testing",
+    "experimentation",
+    "statistics"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "A/B Testing Platform",
+    "shortDescription": "Run experiment simulations and analyze uplift.",
+    "longDescription": "Create experiment configs, simulate traffic allocation, generate decision-ready reports, and launch the local experimentation API.",
+    "developerName": "Local Workspace",
+    "category": "Analytics",
+    "capabilities": [
+      "Interactive",
+      "Write",
+      "Code"
+    ],
+    "websiteURL": "",
+    "privacyPolicyURL": "",
+    "termsOfServiceURL": "",
+    "defaultPrompt": [
+      "Run the A/B testing plugin and summarize the uplift.",
+      "Create a new experiment config and execute it.",
+      "Start the experimentation API for this workspace."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

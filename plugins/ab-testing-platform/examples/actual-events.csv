@@ -1,0 +1,12 @@
+user_id,variant,segment,event_type,occurred_at,revenue
+u001,control,mobile-free,page_view,2026-03-20T10:00:00,0
+u001,control,mobile-free,cta_click,2026-03-20T10:00:08,0
+u002,control,mobile-free,page_view,2026-03-20T11:00:00,0
+u002,control,mobile-free,cta_click,2026-03-20T11:00:07,0
+u002,control,mobile-free,purchase,2026-03-20T11:02:00,89.99
+u005,smart_checkout,mobile-free,page_view,2026-03-20T12:00:00,0
+u005,smart_checkout,mobile-free,cta_click,2026-03-20T12:00:05,0
+u005,smart_checkout,mobile-free,purchase,2026-03-20T12:02:00,92.50
+u006,smart_checkout,mobile-free,page_view,2026-03-20T13:00:00,0
+u006,smart_checkout,mobile-free,cta_click,2026-03-20T13:00:06,0
+u006,smart_checkout,mobile-free,purchase,2026-03-20T13:03:00,110.00

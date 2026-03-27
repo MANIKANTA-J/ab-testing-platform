@@ -1,0 +1,20 @@
+{
+  "name": "playground-local",
+  "interface": {
+    "displayName": "Playground Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "ab-testing-platform",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ab-testing-platform"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Analytics"
+    }
+  ]
+}

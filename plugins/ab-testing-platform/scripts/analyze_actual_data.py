@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+
+def _find_project_root() -> Path:
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / "pyproject.toml").exists() and (candidate / "ab_testing_platform").exists():
+            return candidate
+    raise RuntimeError("Could not locate project root for the A/B testing platform.")
+
+
+PROJECT_ROOT = _find_project_root()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from ab_testing_platform.actual_data import analyze_events_csv, analyze_metrics_csv
+from ab_testing_platform.reporting import result_to_dict
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Analyze real A/B testing CSV data through the plugin.")
+    parser.add_argument("--csv", required=True, help="Path to the input CSV file.")
+    parser.add_argument(
+        "--mode",
+        choices=("metrics", "events"),
+        default="metrics",
+        help="Whether the CSV contains one row per user metric snapshot or one row per event.",
+    )
+    parser.add_argument("--experiment-id", default="", help="Optional experiment identifier override.")
+    parser.add_argument("--name", default="", help="Optional experiment name override.")
+    parser.add_argument("--primary-metric", default="purchase", help="Primary conversion event or metric name.")
+    parser.add_argument("--control-variant", default="", help="Optional control variant name override.")
+    parser.add_argument("--treatment-variant", default="", help="Optional treatment variant name override.")
+    parser.add_argument(
+        "--report-dir",
+        default="reports/plugin-actual-data",
+        help="Directory where reports will be written.",
+    )
+    args = parser.parse_args()
+
+    csv_path = (PROJECT_ROOT / args.csv).resolve() if not Path(args.csv).is_absolute() else Path(args.csv)
+    report_dir = PROJECT_ROOT / args.report_dir
+    kwargs = {
+        "csv_path": csv_path,
+        "report_dir": report_dir,
+        "experiment_id": args.experiment_id or None,
+        "experiment_name": args.name or None,
+        "primary_metric": args.primary_metric,
+        "control_variant": args.control_variant or None,
+        "treatment_variant": args.treatment_variant or None,
+    }
+
+    if args.mode == "metrics":
+        result = analyze_metrics_csv(**kwargs)
+    else:
+        result = analyze_events_csv(**kwargs)
+
+    print(json.dumps(result_to_dict(result), indent=2))
+
+
+if __name__ == "__main__":
+    main()

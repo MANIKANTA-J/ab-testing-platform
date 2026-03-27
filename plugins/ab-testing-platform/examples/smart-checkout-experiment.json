@@ -1,0 +1,14 @@
+{
+  "experiment_id": "exp-smart-checkout-plugin",
+  "name": "Smart Checkout Plugin Experiment",
+  "target_segments": {
+    "device": ["mobile", "desktop"],
+    "subscription_tier": ["free", "basic"]
+  },
+  "traffic_allocation": 0.9,
+  "variants": {
+    "control": 50,
+    "smart_checkout": 50
+  },
+  "primary_metric": "purchase"
+}
