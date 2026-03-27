@@ -14,7 +14,7 @@ This project is a self-contained Python backend demo that simulates a realistic 
 After publishing, users can install it with:
 
 ```bash
-pip install manikanta-ab-testing-platform
+pip install ab-testing-platform
 ```
 
 From source during development:
