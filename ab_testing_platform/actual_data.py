@@ -4,6 +4,7 @@ import csv
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Iterable, Mapping
 
 from .models import Event, ExperimentAssignment, ExperimentConfig, UserMetricSnapshot
 from .pipeline import build_experiment_result
@@ -17,6 +18,30 @@ _CLICKS_ALIASES = ("clicks", "cta_clicks", "click_count")
 _REVENUE_ALIASES = ("revenue", "value", "amount")
 _EVENT_TYPE_ALIASES = ("event_type", "event", "metric")
 _TIMESTAMP_ALIASES = ("occurred_at", "timestamp", "event_time")
+_RECORDS_CONTAINER_ALIASES = ("records", "data", "items", "results")
+
+
+def extract_records(payload: Any, source_name: str = "input") -> list[Mapping[str, Any]]:
+    if isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, Mapping):
+        for alias in _RECORDS_CONTAINER_ALIASES:
+            candidate = payload.get(alias)
+            if candidate is None:
+                continue
+            if not isinstance(candidate, list):
+                raise ValueError(
+                    f"`{alias}` in {source_name} must be a list of record objects."
+                )
+            return candidate
+
+        accepted = ", ".join(_RECORDS_CONTAINER_ALIASES)
+        raise ValueError(
+            f"{source_name} must be a list of records or an object containing one of: {accepted}."
+        )
+
+    raise ValueError(f"{source_name} must be a list of records or a JSON object.")
 
 
 def analyze_metrics_csv(
@@ -29,12 +54,35 @@ def analyze_metrics_csv(
     treatment_variant: str | None = None,
 ):
     rows = _read_csv_rows(csv_path)
+    return analyze_metrics_records(
+        records=rows,
+        report_dir=report_dir,
+        experiment_id=experiment_id or Path(csv_path).stem,
+        experiment_name=experiment_name or f"Actual Data Analysis - {Path(csv_path).stem}",
+        primary_metric=primary_metric,
+        control_variant=control_variant,
+        treatment_variant=treatment_variant,
+    )
+
+
+def analyze_metrics_records(
+    records: Iterable[Mapping[str, Any]],
+    report_dir: str | Path = "reports",
+    experiment_id: str | None = None,
+    experiment_name: str | None = None,
+    primary_metric: str = "purchase",
+    control_variant: str | None = None,
+    treatment_variant: str | None = None,
+):
+    rows = _normalize_records(records, source_name="metrics records")
     if not rows:
-        raise ValueError("Metrics CSV does not contain any rows.")
+        raise ValueError("Metrics data does not contain any rows.")
 
     user_metrics: list[UserMetricSnapshot] = []
     variant_counts: OrderedDict[str, int] = OrderedDict()
     assignments: list[ExperimentAssignment] = []
+    resolved_experiment_id = experiment_id or "actual-metrics"
+    resolved_experiment_name = experiment_name or "Actual Data Analysis"
 
     for row in rows:
         user_id = _require_value(row, _USER_ID_ALIASES, "user_id")
@@ -59,7 +107,7 @@ def analyze_metrics_csv(
         assignments.append(
             ExperimentAssignment(
                 user_id=user_id,
-                experiment_id=experiment_id or Path(csv_path).stem,
+                experiment_id=resolved_experiment_id,
                 segment=segment,
                 variant=variant,
                 is_targeted=True,
@@ -70,8 +118,8 @@ def analyze_metrics_csv(
 
     config = _build_actual_config(
         variant_counts=variant_counts,
-        experiment_id=experiment_id or Path(csv_path).stem,
-        experiment_name=experiment_name or f"Actual Data Analysis - {Path(csv_path).stem}",
+        experiment_id=resolved_experiment_id,
+        experiment_name=resolved_experiment_name,
         primary_metric=primary_metric,
         control_variant=control_variant,
         treatment_variant=treatment_variant,
@@ -110,13 +158,36 @@ def analyze_events_csv(
     treatment_variant: str | None = None,
 ):
     rows = _read_csv_rows(csv_path)
+    return analyze_events_records(
+        records=rows,
+        report_dir=report_dir,
+        experiment_id=experiment_id or Path(csv_path).stem,
+        experiment_name=experiment_name or f"Actual Event Analysis - {Path(csv_path).stem}",
+        primary_metric=primary_metric,
+        control_variant=control_variant,
+        treatment_variant=treatment_variant,
+    )
+
+
+def analyze_events_records(
+    records: Iterable[Mapping[str, Any]],
+    report_dir: str | Path = "reports",
+    experiment_id: str | None = None,
+    experiment_name: str | None = None,
+    primary_metric: str = "purchase",
+    control_variant: str | None = None,
+    treatment_variant: str | None = None,
+):
+    rows = _normalize_records(records, source_name="event records")
     if not rows:
-        raise ValueError("Events CSV does not contain any rows.")
+        raise ValueError("Event data does not contain any rows.")
 
     total_events = 0
     variant_counts: OrderedDict[str, int] = OrderedDict()
     events: list[Event] = []
     user_metrics_by_id: OrderedDict[str, UserMetricSnapshot] = OrderedDict()
+    resolved_experiment_id = experiment_id or "actual-events"
+    resolved_experiment_name = experiment_name or "Actual Event Analysis"
 
     for row in rows:
         user_id = _require_value(row, _USER_ID_ALIASES, "user_id")
@@ -161,8 +232,8 @@ def analyze_events_csv(
 
     config = _build_actual_config(
         variant_counts=variant_counts,
-        experiment_id=experiment_id or Path(csv_path).stem,
-        experiment_name=experiment_name or f"Actual Event Analysis - {Path(csv_path).stem}",
+        experiment_id=resolved_experiment_id,
+        experiment_name=resolved_experiment_name,
         primary_metric=primary_metric,
         control_variant=control_variant,
         treatment_variant=treatment_variant,
@@ -200,7 +271,19 @@ def _read_csv_rows(csv_path: str | Path) -> list[dict[str, str]]:
         return [_normalize_row(row) for row in reader]
 
 
-def _normalize_row(row: dict[str, str | None]) -> dict[str, str]:
+def _normalize_records(
+    records: Iterable[Mapping[str, Any]],
+    source_name: str,
+) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    for index, record in enumerate(records, start=1):
+        if not isinstance(record, Mapping):
+            raise ValueError(f"{source_name} item {index} must be a dictionary-like object.")
+        normalized.append(_normalize_row(record))
+    return normalized
+
+
+def _normalize_row(row: Mapping[str, Any]) -> dict[str, str]:
     normalized: dict[str, str] = {}
     for key, value in row.items():
         if key is None:

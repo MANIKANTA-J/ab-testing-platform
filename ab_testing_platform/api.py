@@ -42,12 +42,22 @@ class ExperimentAPIHandler(BaseHTTPRequestHandler):
                 return
 
             if method == "POST" and path_parts == ["analysis", "metrics-csv"]:
-                analysis = self.service.analyze_actual_data(payload, mode="metrics")
+                analysis = self.service.analyze_actual_data(payload, mode="metrics", source="csv")
                 self._send_json(201, analysis)
                 return
 
             if method == "POST" and path_parts == ["analysis", "events-csv"]:
-                analysis = self.service.analyze_actual_data(payload, mode="events")
+                analysis = self.service.analyze_actual_data(payload, mode="events", source="csv")
+                self._send_json(201, analysis)
+                return
+
+            if method == "POST" and path_parts == ["analysis", "metrics-records"]:
+                analysis = self.service.analyze_actual_data(payload, mode="metrics", source="records")
+                self._send_json(201, analysis)
+                return
+
+            if method == "POST" and path_parts == ["analysis", "events-records"]:
+                analysis = self.service.analyze_actual_data(payload, mode="events", source="records")
                 self._send_json(201, analysis)
                 return
 

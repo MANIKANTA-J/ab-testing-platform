@@ -104,6 +104,30 @@ def test_api_analyzes_actual_metrics_csv(api_base_url: str, tmp_path: Path) -> N
     assert Path(analysis["summary"]["report_paths"]["json"]).exists()
 
 
+def test_api_analyzes_actual_event_records(api_base_url: str) -> None:
+    analysis = _request_json(
+        "POST",
+        f"{api_base_url}/analysis/events-records",
+        {
+            "experiment_id": "exp-api-records",
+            "name": "API Records Analysis",
+            "records": [
+                {"user_id": "u001", "variant": "control", "event_type": "page_view", "occurred_at": "2026-03-20T10:00:00"},
+                {"user_id": "u001", "variant": "control", "event_type": "purchase", "occurred_at": "2026-03-20T10:02:00", "revenue": 49.0},
+                {"user_id": "u005", "variant": "smart_checkout", "event_type": "page_view", "occurred_at": "2026-03-20T12:00:00"},
+                {"user_id": "u005", "variant": "smart_checkout", "event_type": "cta_click", "occurred_at": "2026-03-20T12:00:05"},
+                {"user_id": "u005", "variant": "smart_checkout", "event_type": "purchase", "occurred_at": "2026-03-20T12:02:00", "revenue": 92.50},
+            ],
+        },
+    )
+
+    assert analysis["mode"] == "events"
+    assert analysis["source"] == "records"
+    assert analysis["record_count"] == 5
+    assert analysis["summary"]["experiment"]["id"] == "exp-api-records"
+    assert Path(analysis["summary"]["report_paths"]["json"]).exists()
+
+
 def _request_json(method: str, url: str, payload: dict[str, object] | None = None) -> dict[str, object]:
     headers = {"Content-Type": "application/json"}
     data = None

@@ -79,3 +79,49 @@ def test_module_cli_analyze_json_output(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["experiment"]["id"] == "exp-cli-actual"
     assert Path(payload["report_paths"]["user_metrics_csv"]).exists()
+
+
+def test_module_cli_analyze_json_records_output(tmp_path: Path) -> None:
+    json_path = tmp_path / "actual_metrics.json"
+    json_path.write_text(
+        json.dumps(
+            {
+                "results": [
+                    {"user_id": "u001", "variant": "control", "converted": 0, "sessions": 3, "clicks": 1},
+                    {"user_id": "u002", "variant": "control", "converted": 1, "sessions": 4, "clicks": 2, "revenue": 89.99},
+                    {"user_id": "u003", "variant": "smart_checkout", "converted": 1, "sessions": 4, "clicks": 2, "revenue": 92.50},
+                    {"user_id": "u004", "variant": "smart_checkout", "converted": 1, "sessions": 5, "clicks": 3, "revenue": 110.00},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ab_testing_platform",
+            "analyze",
+            "--json",
+            str(json_path),
+            "--mode",
+            "metrics",
+            "--experiment-id",
+            "exp-cli-json",
+            "--name",
+            "CLI JSON Actual",
+            "--report-dir",
+            str(tmp_path / "actual-json-reports"),
+            "--output-format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
+        check=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["experiment"]["id"] == "exp-cli-json"
+    assert Path(payload["report_paths"]["user_metrics_csv"]).exists()

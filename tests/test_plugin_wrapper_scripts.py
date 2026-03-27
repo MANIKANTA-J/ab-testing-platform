@@ -104,6 +104,48 @@ def test_plugin_actual_data_wrapper_runs(tmp_path: Path) -> None:
     assert Path(payload["report_paths"]["user_metrics_csv"]).exists()
 
 
+def test_plugin_actual_data_wrapper_runs_with_json_records(tmp_path: Path) -> None:
+    json_path = tmp_path / "actual_metrics.json"
+    json_path.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {"user_id": "u001", "variant": "control", "converted": 0, "sessions": 3, "clicks": 1},
+                    {"user_id": "u002", "variant": "control", "converted": 1, "sessions": 4, "clicks": 2, "revenue": 89.99},
+                    {"user_id": "u003", "variant": "smart_checkout", "converted": 1, "sessions": 4, "clicks": 2, "revenue": 92.50},
+                    {"user_id": "u004", "variant": "smart_checkout", "converted": 1, "sessions": 5, "clicks": 3, "revenue": 110.00},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "plugins" / "ab-testing-platform" / "scripts" / "analyze_actual_data.py"),
+            "--json",
+            str(json_path),
+            "--mode",
+            "metrics",
+            "--experiment-id",
+            "exp-plugin-json",
+            "--name",
+            "Plugin Actual JSON",
+            "--report-dir",
+            str(tmp_path / "plugin-actual-json"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
+        check=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["experiment"]["id"] == "exp-plugin-json"
+    assert Path(payload["report_paths"]["user_metrics_csv"]).exists()
+
+
 def test_plugin_api_wrapper_help_text() -> None:
     result = subprocess.run(
         [

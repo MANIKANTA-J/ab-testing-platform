@@ -17,13 +17,26 @@ PROJECT_ROOT = _find_project_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from ab_testing_platform.actual_data import analyze_events_csv, analyze_metrics_csv
+from ab_testing_platform.actual_data import (
+    analyze_events_csv,
+    analyze_events_records,
+    analyze_metrics_csv,
+    analyze_metrics_records,
+    extract_records,
+)
 from ab_testing_platform.reporting import result_to_dict
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze real A/B testing CSV data through the plugin.")
-    parser.add_argument("--csv", required=True, help="Path to the input CSV file.")
+    parser = argparse.ArgumentParser(
+        description="Analyze real A/B testing data through the plugin."
+    )
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--csv", help="Path to the input CSV file.")
+    input_group.add_argument(
+        "--json",
+        help="Path to a JSON file containing a record array or an object with records/data/items/results.",
+    )
     parser.add_argument(
         "--mode",
         choices=("metrics", "events"),
@@ -42,10 +55,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    csv_path = (PROJECT_ROOT / args.csv).resolve() if not Path(args.csv).is_absolute() else Path(args.csv)
     report_dir = PROJECT_ROOT / args.report_dir
     kwargs = {
-        "csv_path": csv_path,
         "report_dir": report_dir,
         "experiment_id": args.experiment_id or None,
         "experiment_name": args.name or None,
@@ -54,10 +65,25 @@ def main() -> None:
         "treatment_variant": args.treatment_variant or None,
     }
 
-    if args.mode == "metrics":
-        result = analyze_metrics_csv(**kwargs)
+    if args.csv:
+        csv_path = (PROJECT_ROOT / args.csv).resolve() if not Path(args.csv).is_absolute() else Path(args.csv)
+        kwargs["csv_path"] = csv_path
+        if args.mode == "metrics":
+            result = analyze_metrics_csv(**kwargs)
+        else:
+            result = analyze_events_csv(**kwargs)
     else:
-        result = analyze_events_csv(**kwargs)
+        json_path = (PROJECT_ROOT / args.json).resolve() if not Path(args.json).is_absolute() else Path(args.json)
+        kwargs["records"] = list(
+            extract_records(
+                json.loads(json_path.read_text(encoding="utf-8")),
+                source_name=f"JSON file `{json_path}`",
+            )
+        )
+        if args.mode == "metrics":
+            result = analyze_metrics_records(**kwargs)
+        else:
+            result = analyze_events_records(**kwargs)
 
     print(json.dumps(result_to_dict(result), indent=2))
 

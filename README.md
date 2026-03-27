@@ -1,225 +1,110 @@
 # A/B Testing & Experimentation Platform
 
-This project is a self-contained Python backend demo that simulates a realistic product experiment lifecycle:
-
-- deterministic user segmentation and traffic allocation into control and treatment groups
-- synthetic event generation for experiment exposures, clicks, and purchases
-- backend metric aggregation for conversions, sessions, clicks, and revenue
-- Welch's t-test significance checks and 95% confidence intervals for conversion uplift
-- automated JSON and Markdown reports with decision-ready experiment insights
-- a zero-dependency HTTP API for creating experiments and querying run results programmatically
+Python toolkit for running synthetic A/B tests and analyzing real experiment data from CSV files, JSON records, API responses, or your own backend pipelines.
 
 ## Install
 
-After publishing, users can install it with:
+Published package:
 
 ```bash
 pip install ab-testing-platform
 ```
 
-From source during development:
+Development install:
 
 ```bash
 pip install -e .[test,publish]
 ```
 
-## Project Structure
+## Quick Start
 
-```text
-ab_testing_platform/
-  actual_data.py
-  assignment.py
-  models.py
-  pipeline.py
-  reporting.py
-  api.py
-  serialization.py
-  service.py
-  storage.py
-  segmentation.py
-  simulation.py
-  statistics.py
-  tracking.py
-tests/
-reports/
-```
-
-## How It Works
-
-1. `simulation.py` generates structured user datasets and experiment event streams.
-2. `assignment.py` deterministically assigns eligible users to `control` or `smart_checkout`.
-3. `tracking.py` aggregates user-level metrics from the event stream.
-4. `statistics.py` runs Welch's t-test and builds a confidence interval around the uplift.
-5. `reporting.py` exports JSON and Markdown reports for stakeholders.
-
-## Run The Demo
-
-Installed CLI:
+Run the demo experiment:
 
 ```bash
 ab-testing-platform demo --users 5000 --seed 7 --report-dir reports
 ```
 
-Module form:
-
-```powershell
-python -m ab_testing_platform demo --users 5000 --seed 7 --report-dir reports
-```
-
-The command writes:
-
-- `reports/exp-checkout-cta-2026-03.json`
-- `reports/exp-checkout-cta-2026-03.md`
-- `reports/exp-checkout-cta-2026-03_assignments.csv`
-- `reports/exp-checkout-cta-2026-03_users.csv`
-- `reports/exp-checkout-cta-2026-03_events.csv`
-
-## Run Tests
-
-```powershell
-pytest
-```
-
-## Analyze Actual Data
-
-If you have a real experiment export, you can analyze it directly from CSV.
-
-Metrics CSV mode expects at least:
-
-- `user_id`
-- `variant`
-- `converted`
-
-Optional metrics columns:
-
-- `segment`
-- `sessions`
-- `clicks`
-- `revenue`
-
-Event CSV mode expects at least:
-
-- `user_id`
-- `variant`
-- `event_type`
-
-Optional event columns:
-
-- `segment`
-- `occurred_at`
-- `revenue`
-
-Examples:
+Analyze real data from CSV:
 
 ```bash
 ab-testing-platform analyze --csv ./actual-user-metrics.csv --mode metrics --report-dir reports/actual-metrics
-ab-testing-platform analyze --csv ./actual-events.csv --mode events --report-dir reports/actual-events
 ```
 
-## Run The API
+Analyze real data from JSON records:
+
+```bash
+ab-testing-platform analyze --json ./actual-user-metrics.json --mode metrics --report-dir reports/actual-metrics
+```
+
+Start the API server:
 
 ```bash
 ab-testing-platform api --host 127.0.0.1 --port 8000
 ```
 
-## Use As A Codex Plugin
+## Real Data
 
-This workspace now includes a repo-local Codex plugin at `plugins/ab-testing-platform`, with marketplace registration in `.agents/plugins/marketplace.json`.
+Supported real-data inputs:
 
-Useful plugin wrapper commands:
+- CSV exports
+- JSON files with a top-level `records`, `data`, `items`, or `results` array
+- Python `list[dict]` records from APIs, databases, or internal services
+- HTTP API analysis routes for CSV and in-memory records
 
-```powershell
-python plugins\ab-testing-platform\scripts\run_demo_experiment.py --users 5000 --seed 7 --report-dir reports\plugin-demo
-python plugins\ab-testing-platform\scripts\run_experiment_from_config.py --config plugins\ab-testing-platform\examples\smart-checkout-experiment.json --users 3000 --seed 7 --report-dir reports\plugin-custom
-python plugins\ab-testing-platform\scripts\analyze_actual_data.py --csv plugins\ab-testing-platform\examples\actual-user-metrics.csv --mode metrics --report-dir reports\plugin-actual-data
-python plugins\ab-testing-platform\scripts\start_api_server.py --host 127.0.0.1 --port 8000
+Use these package helpers when your data already lives in Python:
+
+```python
+from ab_testing_platform import analyze_metrics_records, extract_records
+
+api_response = {
+    "data": [
+        {"user_id": "u001", "variant": "control", "converted": 0},
+        {"user_id": "u002", "variant": "smart_checkout", "converted": 1},
+    ]
+}
+
+result = analyze_metrics_records(
+    records=extract_records(api_response, source_name="checkout API response"),
+    experiment_id="exp-real-data",
+    experiment_name="Checkout CTA Test",
+    report_dir="reports/real-data",
+)
 ```
 
-Available endpoints:
+For the full real-data guide, examples, field mappings, and `try/except` cases, see [docs/real-data.md](docs/real-data.md).
+
+## HTTP API
+
+Available routes:
 
 - `GET /health`
 - `GET /experiments`
 - `POST /experiments`
 - `POST /analysis/metrics-csv`
 - `POST /analysis/events-csv`
+- `POST /analysis/metrics-records`
+- `POST /analysis/events-records`
 - `GET /experiments/{experiment_id}`
 - `GET /experiments/{experiment_id}/runs`
 - `POST /experiments/{experiment_id}/runs`
 - `GET /experiments/{experiment_id}/runs/{run_id}`
 
-Example PowerShell flow:
+## Tests
 
-```powershell
-$body = @{
-  experiment_id = "exp-api-checkout"
-  name = "API Checkout Experiment"
-  target_segments = @{
-    device = @("mobile", "desktop")
-    subscription_tier = @("free", "basic")
-  }
-  traffic_allocation = 0.85
-  variants = @{
-    control = 50
-    variant_b = 50
-  }
-  primary_metric = "purchase"
-} | ConvertTo-Json -Depth 5
-
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/experiments" -Body $body -ContentType "application/json"
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/experiments/exp-api-checkout/runs" -Body '{"user_count":1200,"seed":21}' -ContentType "application/json"
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/analysis/metrics-csv" -Body '{"csv_path":"plugins\\ab-testing-platform\\examples\\actual-user-metrics.csv","experiment_id":"exp-actual-upload","name":"Actual Upload"}' -ContentType "application/json"
+```bash
+pytest -q
 ```
 
-## Build And Publish
+## Release
 
-Build the distributable artifacts:
+Build locally:
 
 ```bash
 python -m build
-```
-
-Validate the metadata before upload:
-
-```bash
 python -m twine check dist/*
 ```
 
-Upload to PyPI:
+This repository also includes GitHub Actions for CI and Trusted Publishing:
 
-```bash
-python -m twine upload dist/*
-```
-
-## Publish With GitHub Actions
-
-This repository includes two workflows:
-
-- `.github/workflows/ci.yml` runs `pytest` on pushes to `main` and on pull requests.
-- `.github/workflows/publish.yml` builds the package, runs tests, validates `dist/*`, and publishes with PyPI Trusted Publishing.
-
-### One-time setup on PyPI and GitHub
-
-1. On PyPI, create or open the project `ab-testing-platform`.
-2. In PyPI, go to Publishing and add a Trusted Publisher with:
-   - Owner: `MANIKANTA-J`
-   - Repository: `ab-testing-platform`
-   - Workflow filename: `publish.yml` (the file in `.github/workflows/publish.yml`)
-   - Environment: `pypi`
-3. On TestPyPI, repeat the same setup but use environment `testpypi`.
-4. In GitHub, create repository environments named `pypi` and `testpypi`.
-5. For `pypi`, require manual approval before deployment. PyPI recommends this for extra safety.
-
-### Release flow
-
-- Test publish:
-  Go to Actions, open `Publish Package`, click `Run workflow`, and choose `testpypi`.
-- Production publish:
-  Create a GitHub Release and publish it. The workflow will build and upload to PyPI automatically.
-
-If PyPI says the project name `ab-testing-platform` is unavailable, change `[project].name` in `pyproject.toml`, update the workflow `PACKAGE_NAME`, and rebuild before publishing.
-
-## Example Decision Logic
-
-- ship the treatment when uplift is positive and statistically significant
-- reject the treatment when it is significantly worse than control
-- continue iterating when the result is directionally positive but inconclusive
+- `.github/workflows/ci.yml`
+- `.github/workflows/publish.yml`

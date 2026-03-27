@@ -6,7 +6,13 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .actual_data import analyze_events_csv, analyze_metrics_csv
+from .actual_data import (
+    analyze_events_csv,
+    analyze_events_records,
+    analyze_metrics_csv,
+    analyze_metrics_records,
+    extract_records,
+)
 from .api import create_server
 from .pipeline import run_demo_experiment, run_experiment
 from .reporting import result_to_dict
@@ -48,8 +54,16 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="How to print the command result.",
     )
 
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze real experiment data from CSV.")
-    analyze_parser.add_argument("--csv", required=True, help="Path to the input CSV file.")
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        help="Analyze real experiment data from CSV or JSON records.",
+    )
+    input_group = analyze_parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--csv", help="Path to the input CSV file.")
+    input_group.add_argument(
+        "--json",
+        help="Path to a JSON file containing a record array or an object with records/data/items/results.",
+    )
     analyze_parser.add_argument(
         "--mode",
         choices=("metrics", "events"),
@@ -92,7 +106,6 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.command == "analyze":
         kwargs = {
-            "csv_path": args.csv,
             "report_dir": args.report_dir,
             "experiment_id": args.experiment_id or None,
             "experiment_name": args.name or None,
@@ -100,10 +113,19 @@ def main(argv: Sequence[str] | None = None) -> None:
             "control_variant": args.control_variant or None,
             "treatment_variant": args.treatment_variant or None,
         }
-        if args.mode == "metrics":
-            result = analyze_metrics_csv(**kwargs)
+        if args.csv:
+            kwargs["csv_path"] = args.csv
+            if args.mode == "metrics":
+                result = analyze_metrics_csv(**kwargs)
+            else:
+                result = analyze_events_csv(**kwargs)
         else:
-            result = analyze_events_csv(**kwargs)
+            records = _load_records_from_json(Path(args.json))
+            kwargs["records"] = records
+            if args.mode == "metrics":
+                result = analyze_metrics_records(**kwargs)
+            else:
+                result = analyze_events_records(**kwargs)
         _emit_result(result_to_dict(result), args.output_format)
         return
 
@@ -145,6 +167,11 @@ def _emit_result(payload: dict[str, object], output_format: str) -> None:
     print(f"Significant:          {statistics['is_significant']}")
     print(f"Decision:             {payload['decision']}")
     print(f"Reports written to:   {report_paths}")
+
+
+def _load_records_from_json(json_path: Path) -> list[dict[str, object]]:
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    return list(extract_records(payload, source_name=f"JSON file `{json_path}`"))
 
 
 if __name__ == "__main__":

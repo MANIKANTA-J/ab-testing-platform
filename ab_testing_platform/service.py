@@ -5,7 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .actual_data import analyze_events_csv, analyze_metrics_csv
+from .actual_data import (
+    analyze_events_csv,
+    analyze_events_records,
+    analyze_metrics_csv,
+    analyze_metrics_records,
+    extract_records,
+)
 from .pipeline import run_experiment
 from .reporting import result_to_dict
 from .serialization import experiment_config_from_dict, experiment_config_to_dict
@@ -88,8 +94,79 @@ class ExperimentService:
         self.store.save_run_payload(experiment_id, run_id, response_payload)
         return response_payload
 
-    def analyze_actual_data(self, payload: dict[str, Any] | None, mode: str) -> dict[str, Any]:
+    def analyze_actual_data(
+        self,
+        payload: dict[str, Any] | None,
+        mode: str,
+        source: str = "csv",
+    ) -> dict[str, Any]:
         request_payload = payload or {}
+        experiment_id = str(request_payload.get("experiment_id", "")).strip() or None
+        experiment_name = str(request_payload.get("name", "")).strip() or None
+        primary_metric = str(request_payload.get("primary_metric", "purchase")).strip() or "purchase"
+        control_variant = str(request_payload.get("control_variant", "")).strip() or None
+        treatment_variant = str(request_payload.get("treatment_variant", "")).strip() or None
+
+        run_id = self._build_actual_run_id(mode=mode, source=source)
+        report_dir = self.report_root / "actual-data" / run_id
+
+        try:
+            if source == "csv":
+                csv_path = self._resolve_csv_path(request_payload)
+                result = self._analyze_csv(
+                    mode=mode,
+                    csv_path=csv_path,
+                    report_dir=report_dir,
+                    experiment_id=experiment_id,
+                    experiment_name=experiment_name,
+                    primary_metric=primary_metric,
+                    control_variant=control_variant,
+                    treatment_variant=treatment_variant,
+                )
+                response: dict[str, Any] = {
+                    "run_id": run_id,
+                    "mode": mode,
+                    "source": source,
+                    "source_csv": str(csv_path),
+                    "created_at": datetime.utcnow().isoformat(),
+                    "summary": result_to_dict(result),
+                }
+            elif source == "records":
+                records = extract_records(request_payload, source_name="request body")
+                result = self._analyze_records(
+                    mode=mode,
+                    records=records,
+                    report_dir=report_dir,
+                    experiment_id=experiment_id,
+                    experiment_name=experiment_name,
+                    primary_metric=primary_metric,
+                    control_variant=control_variant,
+                    treatment_variant=treatment_variant,
+                )
+                response = {
+                    "run_id": run_id,
+                    "mode": mode,
+                    "source": source,
+                    "record_count": len(records),
+                    "created_at": datetime.utcnow().isoformat(),
+                    "summary": result_to_dict(result),
+                }
+            else:
+                raise ServiceError(400, f"Unsupported analysis source: {source}")
+        except ValueError as error:
+            raise ServiceError(400, str(error)) from error
+
+        return response
+
+    def _build_run_id(self, seed: int, user_count: int) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        return f"run-{timestamp}-seed{seed}-users{user_count}"
+
+    def _build_actual_run_id(self, mode: str, source: str) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        return f"actual-{mode}-{source}-{timestamp}"
+
+    def _resolve_csv_path(self, request_payload: dict[str, Any]) -> Path:
         raw_csv_path = str(request_payload.get("csv_path", "")).strip()
         if not raw_csv_path:
             raise ServiceError(400, "`csv_path` is required for actual-data analysis.")
@@ -99,57 +176,73 @@ class ExperimentService:
             csv_path = (Path.cwd() / csv_path).resolve()
         if not csv_path.exists():
             raise ServiceError(404, f"CSV file was not found: {csv_path}")
+        return csv_path
 
-        experiment_id = str(request_payload.get("experiment_id", "")).strip() or None
-        experiment_name = str(request_payload.get("name", "")).strip() or None
-        primary_metric = str(request_payload.get("primary_metric", "purchase")).strip() or "purchase"
-        control_variant = str(request_payload.get("control_variant", "")).strip() or None
-        treatment_variant = str(request_payload.get("treatment_variant", "")).strip() or None
+    def _analyze_csv(
+        self,
+        mode: str,
+        csv_path: Path,
+        report_dir: Path,
+        experiment_id: str | None,
+        experiment_name: str | None,
+        primary_metric: str,
+        control_variant: str | None,
+        treatment_variant: str | None,
+    ):
+        if mode == "metrics":
+            return analyze_metrics_csv(
+                csv_path=csv_path,
+                report_dir=report_dir,
+                experiment_id=experiment_id,
+                experiment_name=experiment_name,
+                primary_metric=primary_metric,
+                control_variant=control_variant,
+                treatment_variant=treatment_variant,
+            )
+        if mode == "events":
+            return analyze_events_csv(
+                csv_path=csv_path,
+                report_dir=report_dir,
+                experiment_id=experiment_id,
+                experiment_name=experiment_name,
+                primary_metric=primary_metric,
+                control_variant=control_variant,
+                treatment_variant=treatment_variant,
+            )
+        raise ServiceError(400, f"Unsupported analysis mode: {mode}")
 
-        run_id = self._build_actual_run_id(mode=mode)
-        report_dir = self.report_root / "actual-data" / run_id
-
-        try:
-            if mode == "metrics":
-                result = analyze_metrics_csv(
-                    csv_path=csv_path,
-                    report_dir=report_dir,
-                    experiment_id=experiment_id,
-                    experiment_name=experiment_name,
-                    primary_metric=primary_metric,
-                    control_variant=control_variant,
-                    treatment_variant=treatment_variant,
-                )
-            elif mode == "events":
-                result = analyze_events_csv(
-                    csv_path=csv_path,
-                    report_dir=report_dir,
-                    experiment_id=experiment_id,
-                    experiment_name=experiment_name,
-                    primary_metric=primary_metric,
-                    control_variant=control_variant,
-                    treatment_variant=treatment_variant,
-                )
-            else:
-                raise ServiceError(400, f"Unsupported analysis mode: {mode}")
-        except ValueError as error:
-            raise ServiceError(400, str(error)) from error
-
-        return {
-            "run_id": run_id,
-            "mode": mode,
-            "source_csv": str(csv_path),
-            "created_at": datetime.utcnow().isoformat(),
-            "summary": result_to_dict(result),
-        }
-
-    def _build_run_id(self, seed: int, user_count: int) -> str:
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-        return f"run-{timestamp}-seed{seed}-users{user_count}"
-
-    def _build_actual_run_id(self, mode: str) -> str:
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-        return f"actual-{mode}-{timestamp}"
+    def _analyze_records(
+        self,
+        mode: str,
+        records: list[dict[str, Any]],
+        report_dir: Path,
+        experiment_id: str | None,
+        experiment_name: str | None,
+        primary_metric: str,
+        control_variant: str | None,
+        treatment_variant: str | None,
+    ):
+        if mode == "metrics":
+            return analyze_metrics_records(
+                records=records,
+                report_dir=report_dir,
+                experiment_id=experiment_id,
+                experiment_name=experiment_name,
+                primary_metric=primary_metric,
+                control_variant=control_variant,
+                treatment_variant=treatment_variant,
+            )
+        if mode == "events":
+            return analyze_events_records(
+                records=records,
+                report_dir=report_dir,
+                experiment_id=experiment_id,
+                experiment_name=experiment_name,
+                primary_metric=primary_metric,
+                control_variant=control_variant,
+                treatment_variant=treatment_variant,
+            )
+        raise ServiceError(400, f"Unsupported analysis mode: {mode}")
 
     def _safe_path_component(self, value: str) -> str:
         return re.sub(r"[^A-Za-z0-9._-]+", "_", value)
