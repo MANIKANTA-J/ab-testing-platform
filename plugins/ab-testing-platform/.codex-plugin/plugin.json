@@ -1,14 +1,14 @@
 {
   "name": "ab-testing-platform",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Run simulated A/B tests, inspect significance, and launch the local experimentation API.",
   "author": {
     "name": "Local Workspace",
     "email": "",
-    "url": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform"
+    "url": "https://github.com/MANIKANTA-J/ab-testing-platform"
   },
-  "homepage": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
-  "repository": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
+  "homepage": "https://github.com/MANIKANTA-J/ab-testing-platform",
+  "repository": "https://github.com/MANIKANTA-J/ab-testing-platform",
   "license": "MIT",
   "keywords": [
     "ab-testing",
@@ -27,7 +27,7 @@
       "Write",
       "Code"
     ],
-    "websiteURL": "https://github.com/MANIKANTA-J/manikanta-ab-testing-platform",
+    "websiteURL": "https://github.com/MANIKANTA-J/ab-testing-platform",
     "privacyPolicyURL": "",
     "termsOfServiceURL": "",
     "defaultPrompt": [

@@ -8,3 +8,4 @@ dist/
 reports/
 output/
 api_data/
+.venv-release/
